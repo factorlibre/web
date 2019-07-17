@@ -26,7 +26,11 @@
 {
     'name': "Web Widget Color",
     'category': "web",
-    'version': "1.0",
+    'version': "8.0.1.0.0",
+    "author": "Savoir-faire Linux, "
+              "Anybox, "
+              "Taktik SA, "
+              "Odoo Community Association (OCA)",
     'depends': ['base', 'web'],
     'data': [
         'view/web_widget_color_view.xml'
@@ -37,4 +41,5 @@
     'auto_install': False,
     'installable': True,
     'web_preload': True,
+    'license': 'GPL-3 or any later version',
 }

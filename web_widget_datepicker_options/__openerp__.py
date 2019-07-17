@@ -22,7 +22,7 @@
 
 {
     "name": 'web_widget_datepicker_options',
-    "version": "1.0",
+    "version": "8.0.1.0.0",
     "depends": [
         'base',
         'web',
@@ -30,7 +30,9 @@
     "data": [
         'view/qweb.xml',
     ],
-    "author": "Vincent Vinet",
+    "author": "Vincent Vinet, "
+              "Odoo Community Association (OCA)",
     "installable": True,
     "active": False,
+    "license": "AGPL-3",
 }

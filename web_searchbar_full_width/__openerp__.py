@@ -20,8 +20,9 @@
 ##############################################################################
 {
     "name": "Full width searchbar",
-    "version": "1.0",
-    "author": "Therp BV",
+    "version": "8.0.1.0.0",
+    "author": "Therp BV, "
+              "Odoo Community Association (OCA)",
     "license": "AGPL-3",
     "category": "Tools",
     "summary": "Show search bar in full screen width",

@@ -20,7 +20,7 @@
 ##############################################################################
 {
     'name': 'Help Online',
-    'version': '1.0',
+    'version': '8.0.1.0.0',
     'author': "ACSONE SA/NV,Odoo Community Association (OCA)",
     'maintainer': 'ACSONE SA/NV',
     'website': 'http://www.acsone.eu',
@@ -28,6 +28,8 @@
     'depends': [
         'base',
         'website',
+        'web',
+        'web_kanban',
     ],
     'description': """
 Help Online
@@ -62,4 +64,5 @@ Note: When updating the page prefix parameters, the record rules must be
     ],
     'installable': True,
     'auto_install': False,
+    'license': 'AGPL-3',
 }

@@ -15,12 +15,11 @@ To install this module, you need to:
 
  * Click on install button
  
- Usage
- =====
+Usage
+=====
  
- In the view declaration, put autocolor="1" attribute in the field tag::
+In the view declaration, put autocolor="1" attribute in the field tag::
 
-    ...
     <field name="arch" type="xml">
         <tree string="View name">
             ...
@@ -29,8 +28,6 @@ To install this module, you need to:
             ...
         </tree>
     </field>
-    ...
- 
 
 Bug Tracker
 ===========

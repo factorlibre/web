@@ -21,7 +21,7 @@
 
 {
     'name': 'Export Current View',
-    'version': '1.2',
+    'version': '8.0.1.3.1',
     'category': 'Web',
     'author': "Agile Business Group,Odoo Community Association (OCA)",
     'website': 'http://www.agilebg.com',

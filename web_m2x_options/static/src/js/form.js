@@ -9,55 +9,82 @@ openerp.web_m2x_options = function (instance) {
         _lt = instance.web._lt;
 
     var OPTIONS = ['web_m2x_options.create',
-	           'web_m2x_options.create_edit',
-		   'web_m2x_options.limit',];
+                   'web_m2x_options.create_edit',
+                   'web_m2x_options.limit',
+                   'web_m2x_options.search_more',
+                   'web_m2x_options.m2o_dialog',];
 
-    instance.web.form.FieldMany2One.include({
+    instance.web.form.FieldMany2One = instance.web.form.FieldMany2One.extend({
 
-	start: function() {
-	    this._super.apply(this, arguments);
-	    return this.get_options();
-	},
- 
-	get_options: function() {
-	    var self = this;
-	    if (!_.isUndefined(this.view) && _.isUndefined(this.view.ir_options_loaded)) {
-		this.view.ir_options_loaded = $.Deferred();
-		this.view.ir_options = {};
-		(new instance.web.Model("ir.config_parameter"))
-		    .query(["key", "value"]).filter([['key', 'in', OPTIONS]])
-		    .all().then(function(records) {
-			_(records).each(function(record) {
-			    self.view.ir_options[record.key] = record.value;
-			});
-			self.view.ir_options_loaded.resolve();
-		    });
-	        return this.view.ir_options_loaded;
-	    }
-	    return $.when();
-	},
-	
-     show_error_displayer: function () {
-            if ((typeof this.options.m2o_dialog === 'undefined' && this.can_create) ||
-                this.options.m2o_dialog) {
+        start: function() {
+            this._super.apply(this, arguments);
+            return this.get_options();
+        },
+
+        get_options: function() {
+            var self = this;
+            if (!_.isUndefined(this.view) && _.isUndefined(this.view.ir_options_loaded)) {
+            this.view.ir_options_loaded = $.Deferred();
+            this.view.ir_options = {};
+            (new instance.web.Model("ir.config_parameter"))
+                .query(["key", "value"]).filter([['key', 'in', OPTIONS]])
+                .all().then(function(records) {
+                _(records).each(function(record) {
+                    self.view.ir_options[record.key] = record.value;
+                });
+                self.view.ir_options_loaded.resolve();
+                });
+                return this.view.ir_options_loaded;
+            }
+            return $.when();
+        },
+
+        is_option_set: function(option) {
+            if (_.isUndefined(option)) {
+                return false
+            }
+            var is_string = typeof option === 'string'
+            var is_bool = typeof option === 'boolean'
+            if (is_string) {
+                return option === 'true' || option === 'True'
+            } else if (is_bool) {
+                return option
+            }
+            return false
+        },
+
+        show_error_displayer: function () {
+            if(this.is_option_set(this.options.m2o_dialog) ||
+               _.isUndefined(this.options.m2o_dialog) && this.is_option_set(this.view.ir_options['web_m2x_options.m2o_dialog']) ||
+               this.can_create && _.isUndefined(this.options.m2o_dialog) && _.isUndefined(this.view.ir_options['web_m2x_options.m2o_dialog'])) {
                 new instance.web.form.M2ODialog(this).open();
             }
         },
 
         get_search_result: function (search_val) {
+            var Objects = new instance.web.Model(this.field.relation);
             var def = $.Deferred();
             var self = this;
             // add options limit used to change number of selections record
             // returned.
-	    if (_.isUndefined(this.view))
-                return this._super.apply(this, arguments);
-            if (!_.isUndefined(this.view.ir_options['web_m2x_options.limit'])) {
-		    this.limit = parseInt(this.view.ir_options['web_m2x_options.limit']);
-	    }
+            if (_.isUndefined(this.view))
+                    return this._super.apply(this, arguments);
+                if (!_.isUndefined(this.view.ir_options['web_m2x_options.limit'])) {
+                this.limit = parseInt(this.view.ir_options['web_m2x_options.limit'],10);
+            }
 
             if (typeof this.options.limit === 'number') {
                 this.limit = this.options.limit;
             }
+
+            // add options search_more to force enable or disable search_more button
+            if (this.is_option_set(this.options.search_more) || _.isUndefined(this.options.search_more) && this.is_option_set(self.view.ir_options['web_m2x_options.search_more'])) {
+                this.search_more = true
+            }
+
+            // add options field_color and colors to color item(s) depending on field_color value
+            this.field_color = this.options.field_color
+            this.colors = this.options.colors
 
             var dataset = new instance.web.DataSet(this, this.field.relation,
                                                    self.build_context());
@@ -71,14 +98,25 @@ openerp.web_m2x_options = function (instance) {
                 'ilike', this.limit + 1,
                 self.build_context()));
 
-            var create_rights;
-            if (typeof this.options.create === "undefined" ||
-                typeof this.options.create_edit === "undefined") {
-                create_rights = new instance.web.Model(this.field.relation).call(
-                    "check_access_rights", ["create", false]);
-            }
+            this.create_rights = this.create_rights || (function () {
+                //call check_access_rights once
+                var target_model = self.field.relation
+                if (self.options.no_create || self.options.no_create_edit)
+                    return $.when(false);
+                
+                return new instance.web.Model('ir.model').
+                    query(['disable_quick_create']).
+                    filter([['model', '=', target_model]]).
+                    first().
+                    then(function(result){
+                        if(result.disable_quick_create)
+                            return $.when(false);
+                        return new instance.web.Model(target_model).call(
+                            "check_access_rights", ["create", false]);
+                    });
+            })();
 
-            $.when(search_result, create_rights).then(function (data, can_create) {
+            $.when(search_result, this.create_rights).then(function (data, can_create) {
 
                 self.can_create = can_create;  // for ``.show_error_displayer()``
                 self.last_search = data;
@@ -93,18 +131,56 @@ openerp.web_m2x_options = function (instance) {
                     };
                 });
 
+                // Search result value colors
+
+                if (self.colors && self.field_color) {
+                    var value_ids = [];
+                    for (var index in values) {
+                        value_ids.push(values[index].id);
+                    }
+
+                    // RPC request to get field_color from Objects
+                    Objects.query([self.field_color])
+                                .filter([['id', 'in', value_ids]])
+                                .all().done(function (objects) {
+                                    for (var index in objects) {
+                                        for (var index_value in values) {
+                                            if (values[index_value].id == objects[index].id) {
+                                                // Find value in values by comparing ids
+                                                var value = values[index_value];
+
+                                                // Find color with field value as key
+                                                var color = self.colors[objects[index][self.field_color]] || 'black';
+                                                value.label = '<span style="color:'+color+'">'+value.label+'</span>';
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    def.resolve(values);
+                                });
+                }
+
                 // search more... if more results that max
 
-                if (values.length > self.limit) {
+                if (values.length > self.limit || self.search_more) {
                     values = values.slice(0, self.limit);
                     values.push({
                         label: _t("Search More..."),
                         action: function () {
-                            dataset.name_search(
-                                search_val, self.build_domain(),
-                                'ilike', false).done(function (data) {
-                                    self._search_create_popup("search", data);
+                            // Odoo JS framework is quite bad designed
+                            // _search_create_popup requires to receices the ids
+                            // even if it will do again a search when displayed
+                            // By default, Odoo display hard code a domain of 160 ids
+                            // preventing to make a search if your datalist has more that 160 items
+                            // https://github.com/odoo/odoo/commit/8c3cdce539d87775b59b3f2d5ceb433f995821bf
+                            new instance.web.Model(dataset.model).call(
+                                    'search', [self.build_domain()]).then(function (ids) {
+                                var ids_list = [];
+                                _.each(ids, function(id) {
+                                    ids_list.push([id]);
                                 });
+                                self._search_create_popup("search", ids_list);
+                            });
                         },
                         classname: 'oe_m2o_dropdown_option'
                     });
@@ -115,10 +191,19 @@ openerp.web_m2x_options = function (instance) {
                 var raw_result = _(data.result).map(function (x) {
                     return x[1];
                 });
+                var can_quick_create = _.isUndefined(self.view.ir_options['web_m2x_options.create']) ||
+                                       (self.view.ir_options['web_m2x_options.create'].toLowerCase() == "true");
+                if (self.options) {
+                   if (typeof self.options.create === 'boolean') {
+                     // field value is stronger than global settings
+                     can_quick_create = self.options.create;
+                   } else if (self.options.no_create || self.options.no_quick_create) {
+                     // undocumented features, try to keep compatibility
+                     can_quick_create = false;
+                   }
+                }
 
-                if ((_.isUndefined(self.options.create) && _.isUndefined(self.view.ir_options['web_m2x_options.create']) && can_create) || 
-		    (_.isUndefined(self.options.create) && self.view.ir_options['web_m2x_options.create'] == "True") ||
-                    self.options.create) {
+                if (can_create && can_quick_create) {
 
                     if (search_val.length > 0 &&
                         !_.include(raw_result, search_val)) {
@@ -136,10 +221,19 @@ openerp.web_m2x_options = function (instance) {
                 }
 
                 // create...
+                var can_create_edit = _.isUndefined(self.view.ir_options['web_m2x_options.create_edit']) ||
+                                       ( self.view.ir_options['web_m2x_options.create_edit'].toLowerCase() == "true");
+                if (self.options) {
+                   if (typeof self.options.create_edit === 'boolean') {
+                     // field value is stronger than global settings
+                     can_create_edit = self.options.create_edit;
+                   } else if (self.options.no_create || self.options.no_create_edit) {
+                     // undocumented features, try to keep compatibility
+                     can_create_edit = false;
+                   }
+                }
 
-                if ((_.isUndefined(self.options.create_edit) && _.isUndefined(self.view.ir_options['web_m2x_options.create_edit']) && can_create) ||
-		    (_.isUndefined(self.options.create) && self.view.ir_options['web_m2x_options.create_edit'] == "True") ||
-                    self.options.create_edit) {
+                if (can_create && can_create_edit) {
 
                     values.push({
                         label: _t("Create and Edit..."),
@@ -152,7 +246,10 @@ openerp.web_m2x_options = function (instance) {
                     });
                 }
 
-                def.resolve(values);
+                // Check if colors specified to wait for RPC
+                if (!(self.field_color && self.colors)){
+                    def.resolve(values);
+                }
             });
 
             return def;
@@ -167,28 +264,28 @@ openerp.web_m2x_options = function (instance) {
                 new instance.web.form.M2ODialog(this).open();
             }
         },
-	
-	start: function() {
-	    this._super.apply(this, arguments);
-	    return this.get_options();
-	},
 
-	get_options: function() {
-	    var self = this;
-	    if (_.isUndefined(this.view.ir_options_loaded)) {
-		    this.view.ir_options_loaded = $.Deferred();
-		    this.view.ir_options = {};
-		    (new instance.web.Model("ir.config_parameter"))
-	                .query(["key", "value"]).filter([['key', 'in', OPTIONS]])
-	                .all().then(function(records) {
-		            _(records).each(function(record) {
-			    self.view.ir_options[record.key] = record.value;
-			    });
-		    self.view.ir_options_loaded.resolve();
-		});
-	    }
-	    return this.view.ir_options_loaded;
-	},
+        start: function() {
+            this._super.apply(this, arguments);
+            return this.get_options();
+        },
+
+        get_options: function() {
+            var self = this;
+            if (_.isUndefined(this.view.ir_options_loaded)) {
+                this.view.ir_options_loaded = $.Deferred();
+                this.view.ir_options = {};
+                (new instance.web.Model("ir.config_parameter"))
+                        .query(["key", "value"]).filter([['key', 'in', OPTIONS]])
+                        .all().then(function(records) {
+                        _(records).each(function(record) {
+                    self.view.ir_options[record.key] = record.value;
+                    });
+                self.view.ir_options_loaded.resolve();
+            });
+            }
+            return this.view.ir_options_loaded;
+        },
 
         /**
         * Call this method to search using a string.
@@ -199,10 +296,10 @@ openerp.web_m2x_options = function (instance) {
 
             // add options limit used to change number of selections record
             // returned.
-	
-	    if (!_.isUndefined(this.view.ir_options['web_m2x_options.limit'])) {
-	        this.limit = parseInt(this.view.ir_options['web_m2x_options.limit']);
-	    }
+
+            if (!_.isUndefined(this.view.ir_options['web_m2x_options.limit'])) {
+                this.limit = parseInt(this.view.ir_options['web_m2x_options.limit'], 10);
+            }
 
             if (typeof this.options.limit === 'number') {
                 this.limit = this.options.limit;
@@ -233,7 +330,10 @@ openerp.web_m2x_options = function (instance) {
                     values.push({
                         label: _t("Search More..."),
                         action: function() {
-                            dataset.name_search(search_val, self.build_domain(), 'ilike', false).done(function(data) {
+                            // limit = 80 for improving performance, similar
+                            // to Odoo implementation here:
+                            // https://github.com/odoo/odoo/commit/8c3cdce539d87775b59b3f2d5ceb433f995821bf
+                            dataset.name_search(search_val, self.build_domain(), 'ilike', 80).done(function(data) {
                                 self._search_create_popup("search", data);
                             });
                         },
@@ -241,10 +341,19 @@ openerp.web_m2x_options = function (instance) {
                     });
                 }
                 // quick create
+                var can_quick_create = _.isUndefined(self.view.ir_options['web_m2x_options.create']) ||
+                                       (self.view.ir_options['web_m2x_options.create'].toLowerCase() == "true");
+                if (self.options) {
+                   if (typeof self.options.create === 'boolean') {
+                     // field value is stronger than global settings
+                     can_quick_create = self.options.create;
+                   } else if (self.options.no_create || self.options.no_quick_create) {
+                     // undocumented features, try to keep compatibility
+                     can_quick_create = false;
+                   }
+                }
 
-                if ((_.isUndefined(self.options.create) && _.isUndefined(self.view.ir_options['web_m2x_options.create'])) ||
-		    (_.isUndefined(self.options.create) && self.view.ir_options['web_m2x_options.create'] == 'True') ||
-                    self.options.create) {
+                if (can_quick_create) {
 
                     var raw_result = _(data.result).map(function(x) {return x[1];});
                     if (search_val.length > 0 && !_.include(raw_result, search_val)) {
@@ -260,10 +369,19 @@ openerp.web_m2x_options = function (instance) {
                 }
 
                 // create...
+                var can_create_edit = _.isUndefined(self.view.ir_options['web_m2x_options.create_edit']) ||
+                                       ( self.view.ir_options['web_m2x_options.create_edit'].toLowerCase() == "true");
+                if (self.options) {
+                   if (typeof self.options.create_edit === 'boolean') {
+                     // field value is stronger than global settings
+                     can_create_edit = self.options.create_edit;
+                   } else if (self.options.no_create || self.options.no_create_edit) {
+                     // undocumented features, try to keep compatibility
+                     can_create_edit = false;
+                   }
+                }
 
-                if ((_.isUndefined(self.options.create_edit === 'undefined') && _.isUndefined(self.view.ir_options['web_m2x_options.create_edit'])) ||
-	            (_.isUndefined(self.options.create) && self.view.ir_options['web_m2x_options.create_edit'] == 'True') ||
-                    self.options.create_edit) {
+                if (can_create_edit) {
 
                     values.push({
                         label: _t("Create and Edit..."),
@@ -276,6 +394,30 @@ openerp.web_m2x_options = function (instance) {
 
                 return values;
             })
+        },
+
+        render_value: function()
+        {
+            var self = this;
+            return jQuery.when(this._super.apply(this, arguments))
+            .then(function()
+            {
+                if(self.options.open)
+                {
+                    self.$el.find('.oe_tag')
+                    .css('cursor', 'pointer')
+                    .click(function(e)
+                    {
+                        var id = parseInt(jQuery(this).attr('data-id'), 10);
+                        self.do_action({
+                            type: 'ir.actions.act_window',
+                            res_model: self.field.relation,
+                            views: [[false, 'form']],
+                            res_id: id,
+                        });
+                    });
+                }
+            });
         },
     });
 };

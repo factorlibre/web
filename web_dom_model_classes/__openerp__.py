@@ -20,7 +20,7 @@
 ##############################################################################
 {
     "name": "CSS classes for widgets",
-    "version": "1.0",
+    "version": "8.0.1.0.0",
     "author": "Therp BV,Odoo Community Association (OCA)",
     "complexity": "normal",
     "summary": "Allows small UI changes with simple CSS",
@@ -33,4 +33,5 @@
     ],
     "auto_install": False,
     "installable": True,
+    "license": "AGPL-3",
 }

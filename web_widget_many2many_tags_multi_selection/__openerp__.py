@@ -21,7 +21,7 @@
 
 {
     'name': 'Tags multiple selection',
-    'version': '0.1',
+    'version': '8.0.0.1.0',
     'author': 'Akretion, Odoo Community Association (OCA)',
     'depends': [
         'web',
@@ -33,4 +33,5 @@
     ],
     'installable': True,
     'auto_install': False,
+    'license': 'AGPL-3',
 }

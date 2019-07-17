@@ -20,7 +20,7 @@
 ##############################################################################
 {
     'name': 'Web Shortcuts',
-    'version': '1.0',
+    'version': '8.0.1.0.0',
     'category': 'Tools',
     'author': "OpenERP SA,Odoo Community Association (OCA)",
     'website': 'http://openerp.com',
@@ -32,6 +32,7 @@
     'qweb': ['static/src/xml/web_shortcuts.xml'],
     'installable': True,
     'auto_install': False,
+    'license': 'AGPL-3',
 }
 
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:
